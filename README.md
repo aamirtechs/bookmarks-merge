@@ -108,6 +108,7 @@ distinct bookmark. Relative links and non-HTTP schemes (such as
 | `--no-dedup` | keep every bookmark, even exact duplicates |
 | `--keep-newest` | on a title conflict, keep the duplicate with the latest ADD_DATE |
 | `--flatten` | drop folders left empty after the merge |
+| `--sort` | sort folders and bookmarks alphabetically (case-insensitive, folders before bookmarks) at every level |
 | `--check` | report only, write nothing; exit 1 if duplicates are found or any input fails to parse, else exit 0 |
 | `--dry-run` | show what would be written, write nothing |
 | `--json` | print the full report as JSON (includes every dropped duplicate) |

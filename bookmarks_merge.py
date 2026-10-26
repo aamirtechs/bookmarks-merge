@@ -21,6 +21,8 @@ Merge rules, in order:
   duplicate with a newer ADD_DATE replaces the kept title and date
   (the position stays where the first occurrence was).
   --flatten drops folders left empty after the merge.
+  --sort sorts folders and bookmarks alphabetically (case-insensitive,
+  folders before bookmarks) at every level after the merge.
   --check validates the exports and reports duplicate counts. It exits
   1 when duplicates are found or when any input fails to parse, and
   writes no output file.
@@ -302,6 +304,27 @@ def flatten_empty_folders(folder):
     return removed
 
 
+def sort_tree(folder):
+    """Sort folders and bookmarks alphabetically at every level.
+
+    Case-insensitive. Folders come before bookmarks. Within each group
+    the original relative order of equal names is preserved (stable sort).
+    Does not change which bookmarks were kept or dropped by the merge.
+    """
+    for child in folder.children:
+        if isinstance(child, Folder):
+            sort_tree(child)
+
+    def sort_key(item):
+        if isinstance(item, Folder):
+            name = (item.name or "").strip().lower()
+            return (0, name)
+        title = (item.title or "").strip().lower()
+        return (1, title)
+
+    folder.children.sort(key=sort_key)
+
+
 def _escape(text):
     return html.escape(text, quote=True)
 
@@ -404,6 +427,12 @@ def main(argv=None):
         help="drop folders left empty after the merge",
     )
     parser.add_argument(
+        "--sort",
+        action="store_true",
+        help="sort folders and bookmarks alphabetically (case-insensitive, "
+        "folders before bookmarks) at every level after the merge",
+    )
+    parser.add_argument(
         "--check",
         action="store_true",
         help="validate the exports and report duplicate counts only, "
@@ -451,6 +480,8 @@ def main(argv=None):
         trees, dedup=args.dedup, keep_newest=args.keep_newest
     )
     flattened = flatten_empty_folders(merged) if args.flatten else 0
+    if args.sort:
+        sort_tree(merged)
     report = build_report(file_infos, merged, duplicates, flattened)
 
     if args.json:
