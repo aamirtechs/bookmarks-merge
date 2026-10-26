@@ -11,6 +11,10 @@ HTML file that re-imports cleanly into any browser.
 
 Zero dependencies. Python 3.9+.
 
+Netscape-format HTML exports and Firefox JSON bookmark backups are accepted as
+inputs. Firefox JSON backups are detected from their contents, so the filename
+extension does not matter.
+
 ## Why
 
 Every browser exports the same Netscape bookmark HTML format, but none

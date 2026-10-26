@@ -116,6 +116,46 @@ def test_parse_add_date():
     assert root.children[0].add_date == 1700000000
 
 
+def test_parse_firefox_json_to_tree():
+    source = {"children": [{"type": "text/x-moz-place-container", "title": "Reading", "children": [{"type": "text/x-moz-place", "title": "A", "uri": "https://a.example.com"}]}]}
+    root, errors = bm._parse_input(json.dumps(source))
+    assert errors == []
+    assert root.children[0].name == "Reading"
+    assert root.children[0].children[0].url == "https://a.example.com"
+
+
+def test_malformed_json_reports_parse_error(tmp_path, capsys):
+    root, errors = bm._parse_input("{not json")
+    assert root.children == []
+    assert errors and "JSON parse failed:" in errors[0]
+
+
+def test_cli_merges_firefox_json_with_html(tmp_path):
+    html_path = write(tmp_path, "a.html", doc(folder("Reading", link("https://a.example.com", "A"))))
+    firefox = {
+        "type": "text/x-moz-place-container",
+        "children": [
+            {
+                "type": "text/x-moz-place-container",
+                "title": "Reading",
+                "children": [
+                    {"type": "text/x-moz-place", "title": "B", "uri": "https://b.example.com"}
+                ],
+            }
+        ],
+    }
+    json_path = write(tmp_path, "firefox.json", json.dumps(firefox))
+    out = str(tmp_path / "merged.html")
+
+    assert bm.main([html_path, json_path, "--out", out]) == 0
+    merged, errors = bm.parse_bookmarks(Path(out).read_text(encoding="utf-8"))
+    assert errors == []
+    assert [item.url for item in merged.children[0].children] == [
+        "https://a.example.com",
+        "https://b.example.com",
+    ]
+
+
 # Merging
 
 

@@ -207,6 +207,49 @@ def parse_bookmarks(text):
     return parser.root, parser.errors
 
 
+def _parse_json_bookmarks(text):
+    """Parse a Firefox JSON backup into the common Folder tree."""
+    try:
+        data = json.loads(text)
+    except (TypeError, ValueError) as exc:
+        return Folder(), ["JSON parse failed: %s" % exc]
+    if not isinstance(data, dict):
+        return Folder(), ["JSON parse failed: root must be an object"]
+
+    root = Folder()
+
+    def add_children(parent, entries):
+        if not isinstance(entries, list):
+            return
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            kind = entry.get("type")
+            if kind == "text/x-moz-place-container":
+                child = Folder(name=str(entry.get("title") or ""))
+                parent.children.append(child)
+                add_children(child, entry.get("children", []))
+            elif kind == "text/x-moz-place" and isinstance(entry.get("uri"), str):
+                parent.children.append(
+                    Bookmark(url=entry["uri"], title=str(entry.get("title") or ""))
+                )
+
+    if isinstance(data.get("children"), list):
+        add_children(root, data["children"])
+    elif isinstance(data.get("roots"), dict):
+        for entry in data["roots"].values():
+            if isinstance(entry, dict):
+                add_children(root, entry.get("children", []))
+    return root, []
+
+
+def _parse_input(text):
+    """Detect Firefox JSON backups by content; otherwise parse HTML."""
+    if text.lstrip().startswith(("{", "[")):
+        return _parse_json_bookmarks(text)
+    return parse_bookmarks(text)
+
+
 def count_tree(folder):
     """Return (bookmark_count, folder_count) for a parsed tree."""
     bookmarks = 0
@@ -433,7 +476,7 @@ def main(argv=None):
         except OSError as exc:
             print("bookmarks-merge: cannot read %s: %s" % (path, exc), file=sys.stderr)
             return 2
-        root, errors = parse_bookmarks(text)
+        root, errors = _parse_input(text)
         bookmarks, folders = count_tree(root)
         if errors:
             parse_failed = True
