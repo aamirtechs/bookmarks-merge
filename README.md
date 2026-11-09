@@ -1,4 +1,5 @@
 # bookmarks-merge
+**Live tool:** https://aamirtechs.github.io/bookmarks-merge/ (runs in your browser, no install)
 
 [![GitHub stars](https://img.shields.io/github/stars/aamirtechs/bookmarks-merge?style=social)](https://github.com/aamirtechs/bookmarks-merge/stargazers) [![GitHub forks](https://img.shields.io/github/forks/aamirtechs/bookmarks-merge?style=social)](https://github.com/aamirtechs/bookmarks-merge/network/members) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/aamirtechs/bookmarks-merge/blob/main/LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/aamirtechs/bookmarks-merge/issues)
 

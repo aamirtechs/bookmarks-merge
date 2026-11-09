@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bookmarks-merge</title>
+<style>
+*{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#f6f8fb;color:#17233b}
+header{background:#0b1f3a;color:#fff;padding:28px 20px;border-bottom:4px solid #d4a72c}
+header .wrap, main{max-width:900px;margin:0 auto}
+header h1{margin:0 0 6px;font-size:28px} header p{margin:0;color:#cfd9e8}
+main{padding:22px 16px 40px}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(11,31,58,.08)}
+label{font-weight:600;display:block;margin:14px 0 6px}
+textarea{width:100%;min-height:150px;padding:10px;border:1px solid #c9d3e0;border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+input[type=text],input[type=number],input[type=date],select{padding:8px 10px;border:1px solid #c9d3e0;border-radius:8px;max-width:100%}
+.row{display:flex;flex-wrap:wrap;gap:14px} .row>div{flex:1 1 180px}
+button{background:#0b1f3a;color:#fff;border:0;border-radius:8px;padding:10px 18px;cursor:pointer;font-size:15px}
+button.accent{background:#d4a72c;color:#17233b;font-weight:700}
+button.secondary{background:#e7edf5;color:#0b1f3a}
+.btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+pre{background:#0b1f3a;color:#eef3fa;border-radius:10px;padding:16px;overflow:auto;white-space:pre-wrap;min-height:120px;font-size:13px}
+footer{max-width:900px;margin:0 auto;padding:0 16px 30px;color:#5a6a82;font-size:14px}
+a{color:#0b1f3a}
+.note{color:#5a6a82;font-size:13px}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>bookmarks-merge</h1><p>Merge bookmark HTML exports from Chrome, Firefox, Safari and Edge into one clean file, with duplicates removed and folders merged.</p></div></header>
+<main>
+<div class="card">
+<label for="file">Choose the first bookmark export</label>
+<input type="file" id="file">
+<label for="input">First export (Netscape bookmark HTML)</label>
+<textarea id="input" placeholder="Paste the first bookmark export here, choose a file, or load the sample."></textarea>
+<label for="file2">Choose the second bookmark export</label>
+<input type="file" id="file2">
+<label for="input2">Second export (Netscape bookmark HTML)</label>
+<textarea id="input2"></textarea>
+<div class="row">
+<div><label for="fname1">First file label</label><input type="text" id="fname1" value="input1.html"></div>
+<div><label for="fname2">Second file label</label><input type="text" id="fname2" value="input2.html"></div>
+</div>
+<div class="row">
+<div><label><input type="checkbox" id="dedup" checked> Dedupe by normalized URL (uncheck for CLI --no-dedup)</label></div>
+<div><label><input type="checkbox" id="keepnewest"> Keep newest on duplicate (CLI --keep-newest)</label></div>
+<div><label><input type="checkbox" id="flatten"> Drop empty folders (CLI --flatten)</label></div>
+<div><label><input type="checkbox" id="check"> Check only (CLI --check)</label></div>
+<div><label><input type="checkbox" id="dryrun"> Dry run (CLI --dry-run)</label></div>
+<div><label><input type="checkbox" id="json"> JSON report (CLI --json)</label></div>
+</div>
+<div class="btns">
+<button class="accent" id="run">Run</button>
+<button class="secondary" id="sample">Load sample</button>
+<button class="secondary" id="download">Download merged bookmarks</button>
+<button class="secondary" id="downloadReport">Download report</button>
+</div>
+<label for="output">Report (same text as the CLI prints)</label>
+<pre id="output">Press Run to see the report. The merged bookmark file is offered through Download merged bookmarks.</pre>
+</div>
+</main>
+<footer>
+<p>Built by AamirTechs. <a href="https://aamirtechs.github.io/">All tools</a> | <a href="https://github.com/aamirtechs/bookmarks-merge">Source</a></p>
+<p>Privacy: this tool runs 100% in your browser, nothing is uploaded.</p>
+</footer>
+<script id="core">
+var TRACKING_PARAMS = {fbclid: 1, gclid: 1};
+function decodeEntities(s){
+  var named = {amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'", nbsp: "\u00a0", copy: "\u00a9", reg: "\u00ae", trade: "\u2122", hellip: "\u2026", mdash: "\u2014", ndash: "\u2013", lsquo: "\u2018", rsquo: "\u2019", ldquo: "\u201c", rdquo: "\u201d", laquo: "\u00ab", raquo: "\u00bb", times: "\u00d7", divide: "\u00f7", plusmn: "\u00b1", deg: "\u00b0", micro: "\u00b5", para: "\u00b6", middot: "\u00b7", bull: "\u2022", dagger: "\u2020", permil: "\u2030", euro: "\u20ac", pound: "\u00a3", yen: "\u00a5", cent: "\u00a2", curren: "\u00a4", brvbar: "\u00a6", sect: "\u00a7", uml: "\u00a8", ordf: "\u00aa", ordm: "\u00ba", iexcl: "\u00a1", iquest: "\u00bf", szlig: "\u00df", agrave: "\u00e0", eacute: "\u00e9", ccedil: "\u00e7", ntilde: "\u00f1", ouml: "\u00f6", uuml: "\u00fc", auml: "\u00e4", euml: "\u00eb", iuml: "\u00ef", yuml: "\u00ff", aring: "\u00e5", aelig: "\u00e6", oslash: "\u00f8", thorn: "\u00fe", eth: "\u00f0"};
+  return s.replace(/&(#x[0-9a-fA-F]+|#X[0-9a-fA-F]+|#\d+|[a-zA-Z][a-zA-Z0-9]+);/g, function(whole, body){
+    if(body.charAt(0)==="#"){
+      var code = (body.charAt(1)==="x" || body.charAt(1)==="X") ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+      if(isNaN(code) || code > 0x10FFFF) return whole;
+      return String.fromCodePoint(code);
+    }
+    return Object.prototype.hasOwnProperty.call(named, body) ? named[body] : whole;
+  });
+}
+function pctDecode(s){
+  var bytes = [];
+  var encoded = new TextEncoder().encode(s.replace(/\+/g, " "));
+  var str = String(s).replace(/\+/g, " ");
+  var rawBytes = [];
+  for(var i=0;i<str.length;i++){
+    if(str.charAt(i)==="%" && i+2<str.length+1 && /^[0-9a-fA-F]{2}$/.test(str.slice(i+1, i+3))){
+      rawBytes.push(parseInt(str.slice(i+1, i+3), 16)); i += 2;
+    } else {
+      var enc = new TextEncoder().encode(str.charAt(i));
+      for(var j=0;j<enc.length;j++) rawBytes.push(enc[j]);
+    }
+  }
+  return new TextDecoder("utf-8").decode(new Uint8Array(rawBytes));
+}
+function quotePlus(s){
+  var out = "";
+  var bytes = new TextEncoder().encode(String(s));
+  for(var i=0;i<bytes.length;i++){
+    var b = bytes[i], ch = String.fromCharCode(b);
+    if(/[A-Za-z0-9_.\-~]/.test(ch)) out += ch;
+    else if(ch===" ") out += "+";
+    else out += "%" + ("0" + b.toString(16).toUpperCase()).slice(-2);
+  }
+  return out;
+}
+function parseUrlParts(raw){
+  var rest = raw, fragment = "";
+  var hashIdx = rest.indexOf("#");
+  if(hashIdx >= 0){ fragment = rest.slice(hashIdx + 1); rest = rest.slice(0, hashIdx); }
+  var scheme = null;
+  var sm = /^([a-zA-Z][a-zA-Z0-9+.\-]*):([\s\S]*)$/.exec(rest);
+  if(sm && sm[2].indexOf("/") !== 0 || (sm && /^\/\//.test(sm[2]))){ scheme = sm[1]; rest = sm[2]; }
+  else if(sm && sm[2].charAt(0) !== "/"){ scheme = sm[1]; rest = sm[2]; }
+  var netloc = "";
+  if(rest.indexOf("//")===0){
+    var after = rest.slice(2);
+    var cut = after.length;
+    var slashI = after.indexOf("/"), qI = after.indexOf("?");
+    if(slashI >= 0) cut = Math.min(cut, slashI);
+    if(qI >= 0) cut = Math.min(cut, qI);
+    netloc = after.slice(0, cut);
+    rest = after.slice(cut);
+  }
+  var query = "";
+  var qIdx = rest.indexOf("?");
+  if(qIdx >= 0){ query = rest.slice(qIdx + 1); rest = rest.slice(0, qIdx); }
+  var path = rest, params = "";
+  var lastSlash = path.lastIndexOf("/");
+  var lastSeg = path.slice(lastSlash + 1);
+  var semi = lastSeg.indexOf(";");
+  if(semi >= 0 && scheme && ["http","https","ftp","file","ws","wss"].indexOf(scheme.toLowerCase())>=0){
+    params = lastSeg.slice(semi + 1);
+    path = path.slice(0, lastSlash + 1) + lastSeg.slice(0, semi);
+  }
+  return {scheme: scheme, netloc: netloc, path: path, params: params, query: query, fragment: fragment};
+}
+function normalizeUrl(url){
+  var raw = String(url).trim();
+  var parts;
+  try { parts = parseUrlParts(raw); } catch(e){ return raw; }
+  if(!parts.scheme || !parts.netloc) return raw;
+  var scheme = parts.scheme.toLowerCase();
+  var netlocRaw = parts.netloc;
+  var userinfo = "", hostport = netlocRaw;
+  var atIdx = netlocRaw.lastIndexOf("@");
+  if(atIdx >= 0){ userinfo = netlocRaw.slice(0, atIdx); hostport = netlocRaw.slice(atIdx + 1); }
+  var host = "", port = null;
+  if(hostport.charAt(0)==="["){
+    var close = hostport.indexOf("]");
+    host = hostport.slice(0, close + 1).toLowerCase();
+    var tail = hostport.slice(close + 1);
+    if(tail.charAt(0)===":" && /^\d+$/.test(tail.slice(1))) port = parseInt(tail.slice(1), 10);
+  } else {
+    var colonIdx = hostport.lastIndexOf(":");
+    if(colonIdx >= 0 && /^\d+$/.test(hostport.slice(colonIdx + 1))){
+      host = hostport.slice(0, colonIdx).toLowerCase();
+      port = parseInt(hostport.slice(colonIdx + 1), 10);
+    } else if(colonIdx >= 0){
+      host = hostport.slice(0, colonIdx).toLowerCase();
+    } else host = hostport.toLowerCase();
+  }
+  if((scheme==="http" && port===80) || (scheme==="https" && port===443)) port = null;
+  var netloc = host;
+  if(port) netloc = host + ":" + port;
+  if(userinfo) netloc = userinfo + "@" + netloc;
+  var path = parts.path;
+  if(path.length > 1 && path.charAt(path.length - 1)==="/") path = path.replace(/\/+$/, "");
+  else if(path==="/") path = "";
+  var kept = [];
+  if(parts.query){
+    var pieces = parts.query.split("&");
+    for(var i=0;i<pieces.length;i++){
+      var piece = pieces[i];
+      if(piece==="") continue;
+      var eq = piece.indexOf("=");
+      var key = pctDecode(eq >= 0 ? piece.slice(0, eq) : piece);
+      var value = pctDecode(eq >= 0 ? piece.slice(eq + 1) : "");
+      var lower = key.toLowerCase();
+      if(lower.indexOf("utm_")===0 || TRACKING_PARAMS[lower]) continue;
+      kept.push([key, value]);
+    }
+  }
+  kept.sort(function(a, b){ if(a[0] < b[0]) return -1; if(a[0] > b[0]) return 1; if(a[1] < b[1]) return -1; if(a[1] > b[1]) return 1; return 0; });
+  var query = kept.map(function(kv){ return quotePlus(kv[0]) + "=" + quotePlus(kv[1]); }).join("&");
+  var out = scheme + "://" + netloc + path;
+  if(parts.params) out += ";" + parts.params;
+  if(query) out += "?" + query;
+  if(parts.fragment) out += "#" + parts.fragment;
+  return out;
+}
+function parseAddDate(value){
+  if(value === null || value === undefined) return null;
+  var t = String(value).trim().replace(/_/g, "");
+  if(!/^[+-]?\d+$/.test(t)) return null;
+  var n = parseInt(t, 10);
+  return isNaN(n) ? null : n;
+}
+function newFolder(name, addDate){ return {isFolder: true, name: name, addDate: addDate, children: []}; }
+function parseBookmarks(text){
+  var root = newFolder(null, null);
+  var stack = [root];
+  var pendingFolder = null;
+  var collecting = null;
+  var errors = [];
+  var s = String(text), pos = 0;
+  function handleData(data){
+    if(collecting === null) return;
+    var t = data.trim();
+    if(!t) return;
+    if(collecting.isFolder) collecting.name = (collecting.name + " " + t).trim();
+    else collecting.title = (collecting.title + " " + t).trim();
+  }
+  function handleStart(tag, attrs){
+    if(tag==="dl"){
+      if(pendingFolder !== null){ stack.push(pendingFolder); pendingFolder = null; }
+    } else if(tag==="h3"){
+      var folder = newFolder("", parseAddDate(attrs["add_date"]));
+      stack[stack.length - 1].children.push(folder);
+      pendingFolder = folder;
+      collecting = folder;
+    } else if(tag==="a"){
+      var href = attrs["href"];
+      if(href === undefined || href === null){
+        errors.push("A tag without HREF ignored");
+        collecting = null;
+        return;
+      }
+      var bookmark = {isFolder: false, url: href, title: "", addDate: parseAddDate(attrs["add_date"])};
+      stack[stack.length - 1].children.push(bookmark);
+      collecting = bookmark;
+    }
+  }
+  function handleEnd(tag){
+    if(tag==="dl"){ if(stack.length > 1) stack.pop(); }
+    else if(tag==="h3" || tag==="a"){ collecting = null; }
+  }
+  while(pos < s.length){
+    var lt = s.indexOf("<", pos);
+    if(lt < 0){ handleData(decodeEntities(s.slice(pos))); break; }
+    if(lt > pos) handleData(decodeEntities(s.slice(pos, lt)));
+    if(s.slice(lt, lt + 4) === "<!--"){
+      var endComment = s.indexOf("-->", lt + 4);
+      pos = endComment < 0 ? s.length : endComment + 3;
+      continue;
+    }
+    var gt = s.indexOf(">", lt);
+    if(gt < 0){ handleData(decodeEntities(s.slice(lt))); break; }
+    var inside = s.slice(lt + 1, gt);
+    pos = gt + 1;
+    if(inside.charAt(0)==="!" || inside.charAt(0)==="?") continue;
+    var isEnd = false;
+    if(inside.charAt(0)==="/"){ isEnd = true; inside = inside.slice(1); }
+    var nameMatch = /^([a-zA-Z][a-zA-Z0-9]*)/.exec(inside.trim());
+    if(!nameMatch) continue;
+    var tag = nameMatch[1].toLowerCase();
+    if(isEnd){ handleEnd(tag); continue; }
+    var attrText = inside.trim().slice(nameMatch[1].length);
+    var attrs = {};
+    var attrRe = /([^\s=\/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]*)))?/g, am;
+    while((am = attrRe.exec(attrText)) !== null){
+      var val = am[2] !== undefined ? am[2] : (am[3] !== undefined ? am[3] : (am[4] !== undefined ? am[4] : ""));
+      attrs[am[1].toLowerCase()] = decodeEntities(val);
+    }
+    handleStart(tag, attrs);
+  }
+  return [root, errors];
+}
+function countTree(folder){
+  var bookmarks = 0, folders = 0;
+  for(var i=0;i<folder.children.length;i++){
+    var child = folder.children[i];
+    if(child.isFolder){
+      folders += 1;
+      var sub = countTree(child);
+      bookmarks += sub[0]; folders += sub[1];
+    } else bookmarks += 1;
+  }
+  return [bookmarks, folders];
+}
+function findFolder(parent, name){
+  var wanted = name.trim().toLowerCase();
+  for(var i=0;i<parent.children.length;i++){
+    var child = parent.children[i];
+    if(child.isFolder && child.name.trim().toLowerCase() === wanted) return child;
+  }
+  return null;
+}
+function mergeTrees(trees, dedup, keepNewest){
+  var merged = newFolder(null, null);
+  var seen = {};
+  var duplicates = [];
+  function mergeFolder(src, dst, path){
+    for(var i=0;i<src.children.length;i++){
+      var child = src.children[i];
+      if(child.isFolder){
+        var existing = findFolder(dst, child.name);
+        if(existing === null){
+          existing = newFolder(child.name, child.addDate);
+          dst.children.push(existing);
+        }
+        mergeFolder(child, existing, path.concat([child.name.trim()]));
+      } else {
+        var key = dedup ? normalizeUrl(child.url) : null;
+        if(key !== null && Object.prototype.hasOwnProperty.call(seen, key)){
+          var keptBm = seen[key];
+          var record = {url: child.url, normalized_url: key, folder: path.length ? path.join("/") : "(root)", dropped_title: child.title, kept_title: keptBm.title};
+          if(keepNewest && child.addDate !== null && (keptBm.addDate === null || child.addDate > keptBm.addDate)){
+            keptBm.title = child.title;
+            keptBm.addDate = child.addDate;
+            record.kept_updated = true;
+          }
+          duplicates.push(record);
+        } else {
+          var keptNew = {isFolder: false, url: child.url, title: child.title, addDate: child.addDate};
+          dst.children.push(keptNew);
+          if(key !== null) seen[key] = keptNew;
+        }
+      }
+    }
+  }
+  for(var t=0;t<trees.length;t++) mergeFolder(trees[t][1], merged, []);
+  return [merged, duplicates];
+}
+function flattenEmptyFolders(folder){
+  var removed = 0, kept = [];
+  for(var i=0;i<folder.children.length;i++){
+    var child = folder.children[i];
+    if(child.isFolder){
+      removed += flattenEmptyFolders(child);
+      if(!child.children.length){ removed += 1; continue; }
+    }
+    kept.push(child);
+  }
+  folder.children = kept;
+  return removed;
+}
+function htmlEscape(text){
+  return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
+}
+function renderHtml(root){
+  var lines = [
+    "<!DOCTYPE NETSCAPE-Bookmark-file-1>",
+    "<!-- This is an automatically generated file.",
+    "     It will be read and overwritten.",
+    "     DO NOT EDIT! -->",
+    "<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">",
+    "<TITLE>Bookmarks</TITLE>",
+    "<H1>Bookmarks</H1>",
+    "<DL><p>"
+  ];
+  function renderFolder(folder, indent){
+    var pad = "    ".repeat(indent);
+    for(var i=0;i<folder.children.length;i++){
+      var child = folder.children[i];
+      if(child.isFolder){
+        var date = child.addDate !== null ? " ADD_DATE=\"" + child.addDate + "\"" : "";
+        lines.push(pad + "<DT><H3" + date + ">" + htmlEscape(child.name) + "</H3>");
+        lines.push(pad + "<DL><p>");
+        renderFolder(child, indent + 1);
+        lines.push(pad + "</DL><p>");
+      } else {
+        var date2 = child.addDate !== null ? " ADD_DATE=\"" + child.addDate + "\"" : "";
+        lines.push(pad + "<DT><A HREF=\"" + htmlEscape(child.url) + "\"" + date2 + ">" + htmlEscape(child.title) + "</A>");
+      }
+    }
+  }
+  renderFolder(root, 1);
+  lines.push("</DL><p>");
+  return lines.join("\n") + "\n";
+}
+function ensureAsciiJson(s){
+  var out = "";
+  for(var i=0;i<s.length;i++){
+    var code = s.charCodeAt(i);
+    if(code > 126 || (code < 32 && s.charAt(i) !== "\n" && s.charAt(i) !== "\t" && s.charAt(i) !== "\r")){
+      out += "\\u" + ("000" + code.toString(16)).slice(-4);
+    } else out += s.charAt(i);
+  }
+  return out;
+}
+window.runTool = function(inputText, options){
+  options = options || {};
+  var inputs = [{label: options.file1Name || "input1.html", text: String(inputText == null ? "" : inputText)}];
+  if(options.secondText !== undefined && options.secondText !== null && String(options.secondText) !== ""){
+    inputs.push({label: options.file2Name || "input2.html", text: String(options.secondText)});
+  }
+  var trees = [], fileInfos = [];
+  for(var i=0;i<inputs.length;i++){
+    var parsed = parseBookmarks(inputs[i].text);
+    var counts = countTree(parsed[0]);
+    trees.push([inputs[i].label, parsed[0]]);
+    fileInfos.push({path: inputs[i].label, bookmarks: counts[0], folders: counts[1], errors: parsed[1]});
+  }
+  var dedup = options.dedup !== false;
+  var mergeRes = mergeTrees(trees, dedup, !!options.keepNewest);
+  var merged = mergeRes[0], duplicates = mergeRes[1];
+  var flattened = options.flatten ? flattenEmptyFolders(merged) : 0;
+  var mergedCounts = countTree(merged);
+  var reportObj = {
+    inputs: fileInfos,
+    total_input_bookmarks: fileInfos.reduce(function(a, f){ return a + f.bookmarks; }, 0),
+    total_input_folders: fileInfos.reduce(function(a, f){ return a + f.folders; }, 0),
+    merged_bookmarks: mergedCounts[0],
+    merged_folders: mergedCounts[1],
+    duplicates_dropped: duplicates.length,
+    duplicates: duplicates,
+    empty_folders_removed: flattened
+  };
+  var rendered = renderHtml(merged);
+  if(options.json){
+    var jsonText = ensureAsciiJson(JSON.stringify(reportObj, null, 2));
+    window.__dl = {name: "merged_bookmarks.html", content: rendered};
+    return jsonText;
+  }
+  var lines = [];
+  for(var j=0;j<fileInfos.length;j++){
+    var info = fileInfos[j];
+    var line = info.path + ": " + info.bookmarks + " bookmark(s), " + info.folders + " folder(s)";
+    if(info.errors.length) line += " [" + info.errors.length + " parse note(s)]";
+    lines.push(line);
+  }
+  lines.push("merged: " + reportObj.merged_bookmarks + " bookmark(s) in " + reportObj.merged_folders + " folder(s), " + reportObj.duplicates_dropped + " duplicate(s) dropped");
+  if(flattened) lines.push("flattened: " + flattened + " empty folder(s) removed");
+  if(options.check){
+    window.__dl = {name: "report.txt", content: lines.join("\n")};
+    return lines.join("\n");
+  }
+  if(options.dryRun){
+    lines.push("dry-run: would write merged_bookmarks.html");
+    window.__dl = {name: "merged_bookmarks.html", content: rendered};
+    return lines.join("\n");
+  }
+  lines.push("wrote merged_bookmarks.html");
+  window.__dl = {name: "merged_bookmarks.html", content: rendered};
+  return lines.join("\n");
+};
+</script>
+<script>
+var SAMPLE1 = "<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n    <DT><H3 ADD_DATE=\"1700000000\">News</H3>\n    <DL><p>\n    <DT><A HREF=\"https://news.example.com/\" ADD_DATE=\"1700000100\">Example News</A>\n    <DT><A HREF=\"https://news.example.com/story?utm_source=twitter&utm_medium=social\" ADD_DATE=\"1700000200\">Big Story</A>\n    <DT><A HREF=\"https://blog.example.com/post\" ADD_DATE=\"1700000300\">Old Post Title</A>\n    </DL><p>\n    <DT><H3 ADD_DATE=\"1700000000\">Tools</H3>\n    <DL><p>\n    <DT><A HREF=\"https://tools.example.com/\" ADD_DATE=\"1700000400\">Tools Home</A>\n    </DL><p>\n    <DT><H3 ADD_DATE=\"1700000000\">Empty Folder</H3>\n    <DL><p>\n    </DL><p>\n</DL><p>\n";
+var SAMPLE2 = "<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n    <DT><H3 ADD_DATE=\"1710000000\">news</H3>\n    <DL><p>\n    <DT><A HREF=\"https://news.example.com\" ADD_DATE=\"1710000100\">Example News</A>\n    <DT><A HREF=\"https://news.example.com/story\" ADD_DATE=\"1710000200\">Big Story</A>\n    <DT><A HREF=\"https://blog.example.com/post/\" ADD_DATE=\"1710000300\">New Post Title</A>\n    </DL><p>\n    <DT><H3 ADD_DATE=\"1710000000\">Cooking</H3>\n    <DL><p>\n    <DT><A HREF=\"https://recipes.example.com/pasta\" ADD_DATE=\"1710000400\">Pasta Night</A>\n    </DL><p>\n    <DT><A HREF=\"https://broken.example.com/page\" ADD_DATE=\"1710000500\">Broken Link\n</DL><p>\n";
+var inputEl = document.getElementById("input");
+var input2El = document.getElementById("input2");
+var outputEl = document.getElementById("output");
+input2El.value = SAMPLE2;
+function readInto(fileInput, target){
+  var f = fileInput.files[0]; if(!f) return null;
+  var r = new FileReader(); r.onload = function(){ target.value = r.result; }; r.readAsText(f);
+  return f.name;
+}
+document.getElementById("file").addEventListener("change", function(ev){
+  var n = readInto(ev.target, inputEl); if(n) document.getElementById("fname1").value = n;
+});
+document.getElementById("file2").addEventListener("change", function(ev){
+  var n = readInto(ev.target, input2El); if(n) document.getElementById("fname2").value = n;
+});
+function gatherOptions(){
+  return {
+    file1Name: document.getElementById("fname1").value || "input1.html",
+    file2Name: document.getElementById("fname2").value || "input2.html",
+    secondText: input2El.value,
+    dedup: document.getElementById("dedup").checked,
+    keepNewest: document.getElementById("keepnewest").checked,
+    flatten: document.getElementById("flatten").checked,
+    check: document.getElementById("check").checked,
+    dryRun: document.getElementById("dryrun").checked,
+    json: document.getElementById("json").checked
+  };
+}
+document.getElementById("run").addEventListener("click", function(){
+  try { outputEl.textContent = window.runTool(inputEl.value, gatherOptions()); }
+  catch(e){ outputEl.textContent = "Error: " + e.message; }
+});
+document.getElementById("sample").addEventListener("click", function(){
+  inputEl.value = SAMPLE1;
+  input2El.value = SAMPLE2;
+  document.getElementById("fname1").value = "examples/chrome_bookmarks.html";
+  document.getElementById("fname2").value = "examples/firefox_bookmarks.html";
+});
+function downloadBlob(content, name){
+  var blob = new Blob([content], {type: "text/html"});
+  var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href);
+}
+document.getElementById("download").addEventListener("click", function(){
+  if(window.__dl) downloadBlob(window.__dl.content, window.__dl.name);
+});
+document.getElementById("downloadReport").addEventListener("click", function(){ downloadBlob(outputEl.textContent, "report.txt"); });
+</script>
+</body>
+</html>
